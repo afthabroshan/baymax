@@ -4,7 +4,6 @@
 // import 'package:geolocator/geolocator.dart';
 // import 'package:geocoding/geocoding.dart';
 
-
 // class LocationPage extends StatefulWidget {
 //   const LocationPage({super.key});
 
@@ -101,21 +100,21 @@
 //   }
 // }
 
-
-
-
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:lottie/lottie.dart';
 
 class LocationService {
   final String apiKey = 'c54c2d55e0104beb98df3ad382e35850';
 
   // Method to get address from coordinates
-  Future<String> getAddressFromCoordinates(double latitude, double longitude) async {
-    final url = 'https://api.opencagedata.com/geocode/v1/json?key=$apiKey&q=$latitude+$longitude&pretty=1';
+  Future<String> getAddressFromCoordinates(
+      double latitude, double longitude) async {
+    final url =
+        'https://api.opencagedata.com/geocode/v1/json?key=$apiKey&q=$latitude+$longitude&pretty=1';
 
     final response = await http.get(Uri.parse(url));
 
@@ -133,7 +132,8 @@ class LocationService {
 
   // Method to get coordinates from address
   Future<Map<String, double>> getCoordinatesFromAddress(String address) async {
-    final url = 'https://api.opencagedata.com/geocode/v1/json?key=$apiKey&q=$address&pretty=1';
+    final url =
+        'https://api.opencagedata.com/geocode/v1/json?key=$apiKey&q=$address&pretty=1';
 
     final response = await http.get(Uri.parse(url));
 
@@ -152,8 +152,6 @@ class LocationService {
   }
 }
 
-
-
 class LocationPage extends StatefulWidget {
   @override
   _LocationPageState createState() => _LocationPageState();
@@ -165,17 +163,16 @@ class _LocationPageState extends State<LocationPage> {
 
   Future<void> _getLocation() async {
     setState(() {
-      
       _locationMessage = "Fetching location...";
     });
 
     try {
       // Replace with your latitude and longitude
- Position position = await Geolocator.getCurrentPosition(
-    );
+      Position position = await Geolocator.getCurrentPosition();
       // log(position as num);
       // Get address from coordinates
-      String address = await locationService.getAddressFromCoordinates(position.latitude, position.longitude);
+      String address = await locationService.getAddressFromCoordinates(
+          position.latitude, position.longitude);
 
       setState(() {
         _locationMessage = "Address: $address";
@@ -197,6 +194,17 @@ class _LocationPageState extends State<LocationPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            //   Container(
+            //   height: 300.h,
+            //   width: 250.w,
+            //   child: Column(
+            //     children: [
+            //       Lottie.asset('assets/voice.json', fit: BoxFit.fill),
+            //       Lottie.asset('assets/electrician.json', fit: BoxFit.fill),
+            //     ],
+            //   ),
+            // ),
+            Lottie.asset('assets/lazy.json', fit: BoxFit.fill),
             Text(
               _locationMessage,
               style: TextStyle(fontSize: 18),

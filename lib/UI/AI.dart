@@ -43,7 +43,7 @@
 //       log(cleanedResponse);
 //       // Parse response
 //       Map<String, dynamic> data = json.decode(cleanedResponse);
-      
+
 //       String aiResponse = data['response'] ?? "No response";
 
 //       // Add both sent message and AI response to the list
@@ -149,7 +149,9 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
 
 class AIPage extends StatefulWidget {
   @override
@@ -168,12 +170,13 @@ class _AIPageState extends State<AIPage> {
     if (_controller.text.isEmpty) return;
 
     setState(() {
-       _messages.add({'type': 'user', 'message': _controller.text});
+      _messages.add({'type': 'user', 'message': _controller.text});
       _loading = true;
       accumulatedResponse = '';
     });
 
-    String url = 'http://192.168.1.5:11434/api/generate'; // Update to correct API endpoint http://127.0.0.1:11434/api/generate
+    String url =
+        'http://192.168.1.5:11434/api/generate'; // Update to correct API endpoint http://127.0.0.1:11434/api/generate
     String prompt = _controller.text;
     _controller.clear();
     try {
@@ -187,8 +190,6 @@ class _AIPageState extends State<AIPage> {
 
       // Send the request and receive the stream
       final streamedResponse = await client.send(request);
-
-      
 
       // Listen to the stream and handle the incoming data
       streamedResponse.stream.listen(
@@ -208,8 +209,10 @@ class _AIPageState extends State<AIPage> {
 
               if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
                 // Extract the complete JSON object
-                String jsonStr = accumulatedResponse.substring(startIndex, endIndex + 1);
-                accumulatedResponse = accumulatedResponse.substring(endIndex + 1);
+                String jsonStr =
+                    accumulatedResponse.substring(startIndex, endIndex + 1);
+                accumulatedResponse =
+                    accumulatedResponse.substring(endIndex + 1);
                 log("this is 212 $jsonStr");
                 // Parse the JSON object
                 Map<String, dynamic> responseData = json.decode(jsonStr);
@@ -222,12 +225,12 @@ class _AIPageState extends State<AIPage> {
                 //     _messages.add({'type': 'ai', 'message': aiResponse});
                 //   });
                 // }
-                if (responseData['done'] == true){
+                if (responseData['done'] == true) {
                   setState(() {
                     _messages.add({'type': 'ai', 'message': AImessages});
                     _loading = false;
                   });
-                AImessages = '';
+                  AImessages = '';
                 }
                 // Check if the response is done
                 // if (responseData['done'] == true) {
@@ -285,6 +288,17 @@ class _AIPageState extends State<AIPage> {
       appBar: AppBar(title: Text('AI Page')),
       body: Column(
         children: [
+          Container(
+            height: 300.h,
+            width: 250.w,
+            child: Column(
+              children: [
+                Lottie.asset('assets/voice.json', fit: BoxFit.fill),
+                Lottie.asset('assets/electrician.json', fit: BoxFit.fill),
+              ],
+            ),
+          ),
+
           Expanded(
             child: ListView.builder(
               itemCount: _messages.length,
@@ -314,7 +328,8 @@ class _AIPageState extends State<AIPage> {
               ],
             ),
           ),
-          if (_loading) CircularProgressIndicator(), // Show loading indicator while waiting
+          if (_loading)
+            CircularProgressIndicator(), // Show loading indicator while waiting
         ],
       ),
     );

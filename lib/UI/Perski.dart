@@ -1,5 +1,5 @@
+import 'package:baymax/UI/calendar_page.dart';
 import 'package:baymax/UI/landing_page.dart';
-import 'package:baymax/UI/mainpage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
@@ -14,11 +14,17 @@ class Perski extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Perski',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 101, 101, 101)),
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: Color.fromARGB(192, 68, 137, 255)),
           useMaterial3: true,
         ),
-        // home: const MainPage(),
+        // initialRoute: '/splash',
+        // routes: {
+        //   '/splash': (context) => const SplashScreen(),
+        //   '/home': (context) => const LandingPage(),
+        // },
         home: const LandingPage(),
+        // home: const CalendarPage(),
       ),
     );
   }
