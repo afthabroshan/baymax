@@ -1,8 +1,20 @@
+buildscript {
+    repositories {
+        google() // Required for Firebase
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.1' // Ensure you're using a compatible version
+        classpath 'com.google.gms:google-services:4.3.15' // Required for Firebase
+    }
+}
+
 allprojects {
     repositories {
         google()
         mavenCentral()
     }
+    
 }
 
 rootProject.buildDir = "../build"
