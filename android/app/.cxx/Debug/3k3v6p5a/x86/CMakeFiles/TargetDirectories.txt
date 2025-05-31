@@ -1,0 +1,2 @@
+C:/baymax/android/app/.cxx/Debug/3k3v6p5a/x86/CMakeFiles/edit_cache.dir
+C:/baymax/android/app/.cxx/Debug/3k3v6p5a/x86/CMakeFiles/rebuild_cache.dir

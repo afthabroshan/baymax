@@ -1,23 +1,73 @@
 import 'dart:developer';
+import 'package:baymax/Config/supa.dart';
 import 'package:baymax/UI/Perski.dart';
+import 'package:baymax/data/firebaseuser.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-import 'package:google_sign_in/google_sign_in.dart';
-
-const supabaseUrl = 'https://gijezcvasikjnukyognj.supabase.co';
-const supabaseKey =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpamV6Y3Zhc2lram51a3lvZ25qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM5ODcxOTgsImV4cCI6MjA0OTU2MzE5OH0.cSKYPycBDeGaJ4TFHWVnf8k9MR9ftSBxI40JP8LXPtQ";
-
 void main() async {
+  final Logger logger = Logger();
   WidgetsFlutterBinding.ensureInitialized();
-  // WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
-  runApp(const Perski());
-  // final data = await Supabase.instance.client.from('calendar').select();
-  // log("this is the data $data");
+  await CurrentUser().loadUserDetails();
+  // await deletenoteEntries();
+  // // WidgetsFlutterBinding.ensureInitialized();
+  // await Firebase.initializeApp();
+  // await Supabase.initialize(url: SupabaseConfig.supabaseUrl, anonKey: SupabaseConfig.supabaseKey);
+  // runApp(const Perski());
+  try {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+    log("Firebase initialized successfully.");
+  } catch (e) {
+    log("Error initializing Firebase: $e");
+  }
+
+  // Initialize Supabase
+  try {
+    await Supabase.initialize(
+      url: SupabaseConfig.supabaseUrl,
+      anonKey: SupabaseConfig.supabaseKey,
+    );
+    log("Supabase initialized successfully.");
+  } catch (e) {
+    log("Error initializing Supabase: $e");
+  }
+  try {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      final fCMtoken = await messaging.getToken();
+      log(fCMtoken.toString());
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (message.notification != null) {
+          log('Message received: ${message.notification!.title}');
+        }
+      });
+      log(fCMtoken.toString());
+      log('User granted permission');
+    } else {
+      log('User denied permission');
+    }
+  } catch (e) {
+    log("$e");
+  }
+  // Run Application
+  log("Starting application...");
+  try {
+    logger.i("Application Started");
+    runApp(const Perski());
+  } catch (e, stackTrace) {
+    logger.e("Unhandled exception", error: e, stackTrace: stackTrace);
+  }
 }

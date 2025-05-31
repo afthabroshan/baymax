@@ -1,157 +1,9 @@
-// import 'dart:developer';
-
-// import 'package:flutter/material.dart';
-// import 'package:http/http.dart' as http;
-// import 'dart:convert';
-
-// class AIPage extends StatefulWidget {
-//   const AIPage({super.key});
-
-//   @override
-//   _AIPageState createState() => _AIPageState();
-// }
-
-// class _AIPageState extends State<AIPage> {
-//   TextEditingController _controller = TextEditingController();
-//   List<Map<String, String>> _messages = []; // List to hold the sent and received messages
-//   bool _loading = false;
-
-//   // Function to send the message and get response from the server
-//   Future<void> sendMessage() async {
-//     if (_controller.text.isEmpty) return;
-
-//     setState(() {
-//       _loading = true;
-//     });
-
-//     // Replace with your server URL
-//     String url = 'http://127.0.0.1:11434/api/generate'; // Example API endpoint
-//     String prompt = _controller.text;
-
-//     // API request
-//     final response = await http.post(
-//       Uri.parse(url),
-//       headers: {'Content-Type': 'application/json'},
-//       body: json.encode({
-//         'model': 'llama3.2',
-//         'prompt': prompt,
-//       }),
-//     );
-
-//     if (response.statusCode == 200) {
-//       String cleanedResponse = response.body.trim();
-//       log(cleanedResponse);
-//       // Parse response
-//       Map<String, dynamic> data = json.decode(cleanedResponse);
-
-//       String aiResponse = data['response'] ?? "No response";
-
-//       // Add both sent message and AI response to the list
-//       setState(() {
-//         _messages.clear(); // Clear previous messages
-//         _messages.add({'type': 'user', 'message': prompt});
-//         _messages.add({'type': 'ai', 'message': aiResponse});
-//         _loading = false;
-//       });
-//     } else {
-//       setState(() {
-//         _loading = false;
-//       });
-//       // Handle error if any
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text("Failed to get response")),
-//       );
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('AI Chatbot'),
-//       ),
-//       body: Padding(
-//         padding: const EdgeInsets.all(16.0),
-//         child: Column(
-//           children: [
-//             // Display messages
-//             Expanded(
-//               child: ListView.builder(
-//                 itemCount: _messages.length,
-//                 itemBuilder: (context, index) {
-//                   return MessageWidget(
-//                     type: _messages[index]['type']!,
-//                     message: _messages[index]['message']!,
-//                   );
-//                 },
-//               ),
-//             ),
-//             // Message input and send button
-//             if (!_loading)
-//               Row(
-//                 children: [
-//                   Expanded(
-//                     child: TextField(
-//                       controller: _controller,
-//                       decoration: InputDecoration(
-//                         hintText: "Type your message...",
-//                         border: OutlineInputBorder(),
-//                       ),
-//                     ),
-//                   ),
-//                   IconButton(
-//                     icon: Icon(Icons.send),
-//                     onPressed: () {
-//                       sendMessage(); // Send message when pressed
-//                     },
-//                   ),
-//                 ],
-//               ),
-//             if (_loading)
-//               CircularProgressIndicator(), // Show loading indicator while waiting for AI response
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// // Custom widget to show the message with different styles based on the sender
-// class MessageWidget extends StatelessWidget {
-//   final String type; // 'user' or 'ai'
-//   final String message;
-
-//   const MessageWidget({required this.type, required this.message});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     bool isUser = type == 'user';
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(vertical: 8.0),
-//       child: Align(
-//         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-//         child: Container(
-//           padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 14.0),
-//           decoration: BoxDecoration(
-//             color: isUser ? Colors.blueAccent : Colors.grey[300],
-//             borderRadius: BorderRadius.circular(12.0),
-//           ),
-//           child: Text(
-//             message,
-//             style: TextStyle(color: isUser ? Colors.white : Colors.black),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-import 'dart:convert';
-import 'dart:developer';
+import 'dart:async';
+import 'package:baymax/Globals/convostarters.dart';
+import 'package:baymax/Globals/fonts.dart';
+import 'package:baymax/services/groqAI.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:http/http.dart' as http;
-import 'package:lottie/lottie.dart';
 
 class AIPage extends StatefulWidget {
   @override
@@ -159,177 +11,314 @@ class AIPage extends StatefulWidget {
 }
 
 class _AIPageState extends State<AIPage> {
-  TextEditingController _controller = TextEditingController();
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _loading = false;
-  List<Map<String, String>> _messages = [];
-  // List _messages = [];
-  String accumulatedResponse = '';
-  String AImessages = '';
-  // Function to send message to AI model and get streaming response
+  String? _starter;
+
+  List<Map<String, dynamic>> _messages = [];
+  String currentStreamText = '';
+  bool aiIsTyping = false;
+  @override
+  void initState() {
+    super.initState();
+    _starter = (conversationStarters..shuffle()).first;
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
   Future<void> sendMessage() async {
-    if (_controller.text.isEmpty) return;
+    if (_controller.text.trim().isEmpty) return;
+
+    String prompt = _controller.text.trim();
 
     setState(() {
-      _messages.add({'type': 'user', 'message': _controller.text});
+      _messages.add({'type': 'user', 'message': prompt});
+      _controller.clear();
       _loading = true;
-      accumulatedResponse = '';
+      _starter = null; // hide starter
     });
-
-    String url =
-        'http://192.168.1.5:11434/api/generate'; // Update to correct API endpoint http://127.0.0.1:11434/api/generate
-    String prompt = _controller.text;
-    _controller.clear();
+    FocusScope.of(context).unfocus();
     try {
-      final client = http.Client();
-      final request = http.Request('POST', Uri.parse(url))
-        ..headers['Content-Type'] = 'application/json'
-        ..body = json.encode({
-          'model': 'perski', // Ensure this is the correct model version
-          'prompt': prompt,
-        });
+      final response = await GroqAIService.processPrompt(prompt);
+      String aiResponse = response['response'] ?? "";
 
-      // Send the request and receive the stream
-      final streamedResponse = await client.send(request);
+      setState(() {
+        _loading = false;
+        aiIsTyping = true;
+        currentStreamText = '';
+      });
 
-      // Listen to the stream and handle the incoming data
-      streamedResponse.stream.listen(
-        (List<int> chunk) {
-          // Convert the chunk into a string
-          String responseChunk = utf8.decode(chunk);
-
-          // Accumulate the chunks
-          accumulatedResponse += responseChunk;
-
-          // Try parsing multiple JSON objects from the accumulated response
-          while (accumulatedResponse.isNotEmpty) {
-            try {
-              // Look for the first valid JSON object
-              int startIndex = accumulatedResponse.indexOf('{');
-              int endIndex = accumulatedResponse.indexOf('}');
-
-              if (startIndex != -1 && endIndex != -1 && endIndex > startIndex) {
-                // Extract the complete JSON object
-                String jsonStr =
-                    accumulatedResponse.substring(startIndex, endIndex + 1);
-                accumulatedResponse =
-                    accumulatedResponse.substring(endIndex + 1);
-                log("this is 212 $jsonStr");
-                // Parse the JSON object
-                Map<String, dynamic> responseData = json.decode(jsonStr);
-                String aiResponse = responseData['response'] ?? "";
-                log("this is the airesonse from 215 $aiResponse");
-                AImessages += aiResponse;
-                log(accumulatedResponse);
-                // if (aiResponse.isNotEmpty) {
-                //   setState(() {
-                //     _messages.add({'type': 'ai', 'message': aiResponse});
-                //   });
-                // }
-                if (responseData['done'] == true) {
-                  setState(() {
-                    _messages.add({'type': 'ai', 'message': AImessages});
-                    _loading = false;
-                  });
-                  AImessages = '';
-                }
-                // Check if the response is done
-                // if (responseData['done'] == true) {
-                //   log("this is the responseData from 224 $responseData");
-                //   log("this is the airesponse from 225 $aiResponse");
-                //   setState(() {
-                //     _messages.add({'type': 'ai', 'message': accumulatedResponse});
-                //     _loading = false;
-                //     // _messages.add({'type': 'ai', 'message': aiResponse});
-                //   });
-                //   accumulatedResponse = '';
-                //   //  _messages.add({'type': 'ai', 'message': aiResponse});
-                //   break;
-                // }
-              } else {
-                // Not a valid JSON object, break out of the loop and wait for more data
-                break;
-              }
-            } catch (e) {
-              print("Error parsing chunk: $e");
-              break; // Stop processing if an error occurs
-            }
-          }
-        },
-        onDone: () {
-          // All chunks have been received
-          setState(() {
-            _loading = false;
-          });
-        },
-        onError: (e) {
-          print("Error in stream: $e");
-          setState(() {
-            _loading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e")),
-          );
-          log(e);
-        },
-      );
+      _streamAIResponse(aiResponse);
     } catch (e) {
       setState(() {
         _loading = false;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
       );
     }
   }
 
+  void _streamAIResponse(String fullMessage) {
+    int index = 0;
+
+    Timer.periodic(Duration(milliseconds: 30), (timer) {
+      if (index < fullMessage.length) {
+        setState(() {
+          currentStreamText += fullMessage[index];
+        });
+        index++;
+        _scrollToBottom();
+      } else {
+        timer.cancel();
+        setState(() {
+          _messages.add({'type': 'ai', 'message': currentStreamText});
+          aiIsTyping = false;
+        });
+        currentStreamText = '';
+        _scrollToBottom();
+      }
+    });
+  }
+
+  Widget buildMessageBubble(Map<String, dynamic> message) {
+    bool isUser = message['type'] == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 5),
+        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isUser ? AppColors.blue : Colors.transparent,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(15),
+            topRight: Radius.circular(15),
+            bottomLeft: isUser ? Radius.circular(15) : Radius.circular(0),
+            bottomRight: isUser ? Radius.circular(0) : Radius.circular(15),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min, // So the row shrinks to fit content
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isUser) ...[
+              CircleAvatar(
+                radius: 22.r,
+                backgroundColor: Colors.transparent, // Customize color
+                backgroundImage: AssetImage('assets/afthab.png'),
+              ),
+              SizedBox(width: 8.w), // Add spacing between avatar and text
+            ],
+            Flexible(
+              child: Text(
+                message['message'] ?? '',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: isUser ? 16 : 14,
+                  fontFamily: isUser ? 'Newsreader' : 'Silkscreen',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildStreamingBubble(String text) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(
+            vertical: 6, horizontal: 5), // light margin for spacing
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 16.r,
+              backgroundColor: Colors.transparent, // Customize color
+              backgroundImage: AssetImage('assets/afthab.png'),
+            ),
+            SizedBox(width: 8.w), // Spacing between avatar and text
+            Flexible(
+              child: Text(
+                text,
+                style: AppTextStyles.aiContent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('AI Page')),
-      body: Column(
+      backgroundColor: AppColors.bgcolor,
+      body: Stack(
         children: [
-          Container(
-            height: 300.h,
-            width: 250.w,
-            child: Column(
-              children: [
-                Lottie.asset('assets/voice.json', fit: BoxFit.fill),
-                Lottie.asset('assets/electrician.json', fit: BoxFit.fill),
-              ],
-            ),
-          ),
+          Column(
+            children: [
+              // Starter should appear *inside* the scrollable area
+              Expanded(
+                child: _messages.isEmpty && _starter != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize
+                                .min, // Ensures the column centers tightly
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start, // Align text to left
 
-          Expanded(
-            child: ListView.builder(
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return ListTile(
-                  title: Text(message['message'] ?? ''),
-                  subtitle: Text(message['type'] == 'user' ? 'User' : 'AI'),
-                );
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/afthab.png',
+                                    height: 50.h,
+                                  ),
+                                  ShaderMask(
+                                    shaderCallback: (bounds) => LinearGradient(
+                                      colors: [
+                                        const Color.fromARGB(255, 3, 205, 205),
+                                        Colors.teal,
+                                        AppColors.blue,
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ).createShader(bounds),
+                                    child: Text(
+                                      'BAYMAX',
+                                      style: AppTextStyles.aiContent.copyWith(
+                                        fontSize: 52,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        letterSpacing: 2.0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Wrap(
+                                alignment: WrapAlignment.start,
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: conversationStarters.map((starter) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      _controller.text = starter;
+                                      sendMessage();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10, horizontal: 14),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.ash,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        starter,
+                                        style: AppTextStyles.aiContent
+                                            .copyWith(fontSize: 12),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _messages.length + (aiIsTyping ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index < _messages.length) {
+                            return buildMessageBubble(_messages[index]);
+                          } else if (aiIsTyping) {
+                            return buildStreamingBubble(currentStreamText);
+                          }
+                          return SizedBox.shrink();
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+                child: !aiIsTyping
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              decoration: InputDecoration(
+                                hintText: 'Ask something...',
+                                hintStyle: AppTextStyles.medContent
+                                    .copyWith(color: AppColors.ash),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.textash,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          GestureDetector(
+                            onTap: sendMessage,
+                            child: CircleAvatar(
+                              radius: 25,
+                              backgroundColor: AppColors.ash,
+                              child: Icon(Icons.send, color: AppColors.blue),
+                            ),
+                          ),
+                        ],
+                      )
+                    : null,
+              ),
+            ],
+          ),
+          Positioned(
+            top: 40,
+            left: 10,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.ash,
+                elevation: 5,
+                shape: CircleBorder(),
+                padding: EdgeInsets.all(10),
+              ),
+              child: Icon(Icons.arrow_back, color: AppColors.blue),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(hintText: 'Ask something...'),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.send),
-                  onPressed: sendMessage,
-                ),
-              ],
-            ),
-          ),
-          if (_loading)
-            CircularProgressIndicator(), // Show loading indicator while waiting
         ],
       ),
     );

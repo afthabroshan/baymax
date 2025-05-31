@@ -10,7 +10,7 @@
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" android:deprecated="true" /> -->
 
         <application
-            android:label="baymax"
+            android:label="Baymax"
             android:name="${applicationName}"
             android:icon="@mipmap/ic_launcher">
             <activity
